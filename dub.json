@@ -1,5 +1,7 @@
 {
 	"name": "reversineer",
+	"description": "Library for aiding in reverse engineering of binary formats",
 	"copyright": "Copyright © 2018, Cameron",
+	"license": "BSL-1.0",
 	"authors": ["Cameron"]
 }
