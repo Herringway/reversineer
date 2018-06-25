@@ -1,0 +1,8 @@
+*.exe
+*.lst
+*.so
+*.dll
+*.o
+*.a
+.dub
+dub.selections.json
