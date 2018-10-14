@@ -3,6 +3,7 @@
 *.so
 *.dll
 *.o
+*.lib
 *.a
 .dub
 dub.selections.json
