@@ -179,6 +179,12 @@ private struct EndianType(T, bool littleEndian) {
 		}
 		return result;
 	}
+	void native(out T result) const @safe {
+		result = (cast(T[])(raw[].dup))[0];
+		static if (needSwap) {
+			swapEndianness(result);
+		}
+	}
 	void toString(Range)(Range sink) const if (isOutputRange!(Range, const(char))) {
 		import std.format : formattedWrite;
 		sink.formattedWrite!"%s"(this.native);
