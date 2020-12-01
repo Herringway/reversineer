@@ -346,7 +346,6 @@ private T fromPBCD(T)(ubyte[T.sizeof] input) {
 	assert(data.fromPBCD!ushort() == 9876);
 }
 
-
 private ubyte[T.sizeof] toPBCD(T)(T input) {
 	import std.algorithm : map;
 	import std.array : array;
@@ -375,7 +374,7 @@ struct PackedBCD(T) {
 	ubyte[T.sizeof] raw;
 	alias toInt this;
 	T toInt() const {
-		return fromPBCD(raw);
+		return fromPBCD!T(raw);
 	}
 	void toString(Range)(Range sink) const if (isOutputRange!(Range, const(char))) {
 		import std.format : formattedWrite;
@@ -390,4 +389,10 @@ struct PackedBCD(T) {
 	void opAssign(const T input) {
 		raw = toPBCD(input);
 	}
+}
+
+@safe unittest {
+	PackedBCD!uint x;
+	x = cast(ubyte[])[0x98, 0x76, 0x54, 0x32];
+	assert(x.toInt == 98765432);
 }
