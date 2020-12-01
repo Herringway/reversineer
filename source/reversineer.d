@@ -47,6 +47,7 @@ void read(T, Range)(Range input, T* val) @safe if (isPODStruct!T && isInputRange
 		output.bytes = input[0..T.sizeof];
 	} else {
 		foreach (ref target; output.bytes) {
+			assert(!input.empty, "Not enough bytes left to read!");
 			target = input.front;
 			input.popFront();
 		}
