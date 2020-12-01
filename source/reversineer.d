@@ -396,3 +396,16 @@ struct PackedBCD(T) {
 	x = cast(ubyte[])[0x98, 0x76, 0x54, 0x32];
 	assert(x.toInt == 98765432);
 }
+
+mixin template VerifyOffsets(T, size_t size) {
+	import std.format : format;
+	import std.traits : getSymbolsByUDA, getUDAs;
+	static foreach (field; getSymbolsByUDA!(T, Offset)) {
+		static assert(field.offsetof == getUDAs!(field, Offset)[0].offset, format!"Bad offset for %s.%s: %08X, expecting %08X - adjust previous field by 0x%X"(T.stringof, field.stringof, field.offsetof, getUDAs!(field, Offset)[0].offset, getUDAs!(field, Offset)[0].offset-field.offsetof));
+	}
+	static assert(T.sizeof == size, format!"Bad size for %s: 0x%08X != 0x%08X"(T.stringof, T.sizeof, size));
+}
+
+struct Offset {
+	ulong offset;
+}
