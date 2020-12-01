@@ -15,7 +15,7 @@ import std.traits;
 +		val = destination to place read data at
 +/
 T read(T, Range)(Range input) if (isPODStruct!T && isInputRange!Range && is(ElementType!Range : const ubyte)) {
-	T val;
+	T val = void;
 	read(input, val);
 	return val;
 }
@@ -25,7 +25,7 @@ void read(T, Range)(Range input, ref T val) @safe if (isPODStruct!T && isInputRa
 		T val;
 		ubyte[T.sizeof] bytes;
 	}
-	Output output;
+	Output output = void;
 	static if (hasSlicing!Range) {
 		output.bytes = input[0..val.sizeof];
 	} else {
