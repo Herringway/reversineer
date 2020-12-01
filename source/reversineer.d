@@ -219,6 +219,10 @@ void swapEndianness(T)(ref T val) {
 		foreach (ref field; val.tupleof) {
 			swapEndianness(field);
 		}
+	} else static if (isStaticArray!T) {
+		foreach (ref element; val) {
+			swapEndianness(element);
+		}
 	} else static assert(0, "Unsupported type "~T.stringof);
 }
 
@@ -249,13 +253,27 @@ alias LittleEndian(T) = EndianType!(T, true);
 		align(1):
 		uint a;
 		ushort b;
+		ushort[2] c;
 	}
 	LittleEndian!Test t;
-	t = cast(ubyte[])[3, 2, 1, 0, 2, 1];
+	t = cast(ubyte[])[3, 2, 1, 0, 2, 1, 6, 5, 8, 7];
 	assert(t.a == 0x010203);
 	assert(t.b == 0x0102);
-	t = Test(42, 42);
-	assert(t.raw == [42, 0, 0, 0, 42, 0]);
+	assert(t.c == [0x0506, 0x0708]);
+	t = Test(42, 42, [10, 20]);
+	assert(t.raw == [42, 0, 0, 0, 42, 0, 10, 0, 20, 0]);
+
+	align(1) static struct Test2 {
+		align(1):
+		ubyte a;
+		char b;
+		ubyte[4] c;
+	}
+	LittleEndian!Test2 t2;
+	t2 = cast(ubyte[])[20, 30, 1, 2, 3, 4];
+	assert(t2.a == 20);
+	assert(t2.b == 30);
+	assert(t2.c == [1, 2, 3, 4]);
 }
 
 /++
@@ -281,13 +299,27 @@ alias BigEndian(T) = EndianType!(T, false);
 		align(1):
 		uint a;
 		ushort b;
+		ushort[2] c;
 	}
 	BigEndian!Test t;
-	t = cast(ubyte[])[0, 1, 2, 3, 1, 2];
+	t = cast(ubyte[])[0, 1, 2, 3, 1, 2, 5, 6, 7, 8];
 	assert(t.a == 0x010203);
 	assert(t.b == 0x0102);
-	t = Test(42, 42);
-	assert(t.raw == [0, 0, 0, 42, 0, 42]);
+	assert(t.c == [0x0506, 0x0708]);
+	t = Test(42, 42, [10, 20]);
+	assert(t.raw == [0, 0, 0, 42, 0, 42, 0, 10, 0, 20]);
+
+	align(1) static struct Test2 {
+		align(1):
+		ubyte a;
+		char b;
+		ubyte[4] c;
+	}
+	BigEndian!Test2 t2;
+	t2 = cast(ubyte[])[20, 30, 1, 2, 3, 4];
+	assert(t2.a == 20);
+	assert(t2.b == 30);
+	assert(t2.c == [1, 2, 3, 4]);
 }
 
 private T fromPBCD(T)(ubyte[T.sizeof] input) {
