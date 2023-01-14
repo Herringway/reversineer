@@ -409,3 +409,161 @@ mixin template VerifyOffsets(T, size_t size) {
 struct Offset {
 	ulong offset;
 }
+
+struct Palette {
+	bool shareSeed = false;
+	bool dontSkipFirst = false;
+}
+struct Name {
+}
+
+struct Label {
+	string name;
+	string description;
+}
+
+align(1) struct SimpleChar(alias table) {
+	align(1):
+	ubyte val;
+	string toChar() const @safe {
+		import std.format : format;
+		if (val in table) {
+			return table[val];
+		} else {
+			return format!"[%02X]"(val);
+		}
+	}
+}
+
+align(1) struct SimpleString(alias table, ubyte terminator, size_t Length) {
+	align(1):
+	import siryul : SerializationMethod;
+	ubyte[Length] str;
+	size_t length() const @safe {
+		return Length;
+	}
+	@SerializationMethod
+	string toString() const @safe {
+		string result;
+		foreach (chr; str) {
+			if (chr == terminator) {
+				break;
+			}
+			result ~= SimpleChar!table(chr).toChar();
+		}
+		return result;
+	}
+	void opAssign(const string input) @safe {
+		str[] = terminator;
+		foreach (i, inChar; input) {
+			bool found;
+			foreach (k, v; table) {
+				if (v == [inChar]) {
+					found = true;
+					str[i] = k;
+					break;
+				}
+			}
+			assert(found, "Game does not support character '"~inChar~"'");
+		}
+	}
+}
+
+align(1) struct SimpleStringDynamic(alias table, ubyte terminator) {
+	import std.algorithm.searching : countUntil;
+	import siryul : SerializationMethod;
+	align(1):
+	ubyte[] str;
+	size_t length() const @safe {
+		return str.countUntil!(x => x == terminator);
+	}
+	@SerializationMethod
+	string toString() const @safe {
+		string result;
+		foreach (chr; str) {
+			if (chr == terminator) {
+				break;
+			}
+			result ~= SimpleChar!table(chr).toChar();
+		}
+		return result;
+	}
+	void opAssign(const string input) @safe {
+		str[] = terminator;
+		foreach (i, inChar; input) {
+			bool found;
+			foreach (k, v; table) {
+				if (v == [inChar]) {
+					found = true;
+					str[i] = k;
+					break;
+				}
+			}
+			assert(found, "Game does not support character '"~inChar~"'");
+		}
+	}
+}
+
+align(1) struct SimpleStrings(alias table, ubyte terminator, size_t Length) {
+	align(1):
+	import siryul : SerializationMethod;
+	ubyte[Length] str;
+	size_t length() const @safe {
+		return Length;
+	}
+	@SerializationMethod
+	string[] toString() const @safe {
+		string[] result;
+		string buf;
+		foreach (chr; str) {
+			if (chr == terminator) {
+				result ~= buf;
+				buf = "";
+			} else {
+				buf ~= SimpleChar!table(chr).toChar();
+			}
+		}
+		return result;
+	}
+	void opAssign(const string input) @safe {
+		str[] = terminator;
+		foreach (i, inChar; input) {
+			bool found;
+			foreach (k, v; table) {
+				if (v == [inChar]) {
+					found = true;
+					str[i] = k;
+					break;
+				}
+			}
+			assert(found, "Game does not support character '"~inChar~"'");
+		}
+	}
+	auto opSlice() {
+		import std.algorithm.iteration : map, splitter;
+		return str[].splitter(terminator).map!(x => SimpleStringDynamic!(table, terminator)(x));
+	}
+}
+
+struct Randomize {}
+
+struct Width {
+	ulong width;
+}
+
+struct Height {
+	ulong height;
+}
+
+enum RowByRow;
+
+align(1) struct UnknownData(size_t Size) {
+	import siryul : SerializationMethod;
+	align(1):
+	ubyte[Size] raw;
+	@SerializationMethod
+	string toBase64() const @safe {
+		import std.base64 : Base64;
+		return Base64.encode(raw[]);
+	}
+}
