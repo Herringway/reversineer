@@ -243,6 +243,9 @@ alias LittleEndian(T) = EndianType!(T, true);
 	LittleEndian!ushort x;
 	x = cast(ubyte[])[0, 2];
 	assert(x == 0x200);
+	ushort tmp;
+	x.native(tmp);
+	assert(tmp == 512);
 	assert(x.text == "512");
 	ubyte[] z = [0, 3];
 	x = z;
@@ -293,6 +296,9 @@ alias BigEndian(T) = EndianType!(T, false);
 	BigEndian!ushort x;
 	x = cast(ubyte[])[2, 0];
 	assert(x == 0x200);
+	ushort tmp;
+	x.native(tmp);
+	assert(tmp == 512);
 	assert(x.text == "512");
 	x = 1024;
 	assert(x.raw == [4, 0]);
@@ -395,6 +401,8 @@ struct PackedBCD(T) {
 	PackedBCD!uint x;
 	x = cast(ubyte[])[0x98, 0x76, 0x54, 0x32];
 	assert(x.toInt == 98765432);
+	x = 44;
+	assert(x.raw == [0, 0, 0, 0x44]);
 }
 
 mixin template VerifyOffsets(T, size_t size) {
