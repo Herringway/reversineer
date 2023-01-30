@@ -430,6 +430,27 @@ struct Label {
 	string description;
 }
 
+ubyte[] writeTableString(bool expand)(ubyte[] data, string[char] table, string str, out size_t index) @safe pure {
+	import std.algorithm.searching : startsWith;
+	while (str.length > 0) {
+		bool found;
+		foreach (k, v; table) {
+			if (str.startsWith(v)) {
+				found = true;
+				str = str[v.length .. $];
+				if (index >= data.length) {
+					enforce(expand, "String too large");
+					data.length = index + 1;
+				}
+				data[index++] = k;
+				break;
+			}
+		}
+		assert(found, "Table does not contain anything matching '"~str~"'");
+	}
+	return data;
+}
+
 align(1) struct SimpleChar(alias table) {
 	align(1):
 	ubyte val;
@@ -443,14 +464,17 @@ align(1) struct SimpleChar(alias table) {
 	}
 }
 
+@safe pure unittest {
+	SimpleChar!(['a': "bb"]) c;
+	assert(c.toChar == "[00]");
+}
+
 align(1) struct SimpleString(alias table, ubyte terminator, size_t Length) {
 	align(1):
-	import siryul : SerializationMethod;
 	ubyte[Length] str;
 	size_t length() const @safe {
 		return Length;
 	}
-	@SerializationMethod
 	string toString() const @safe {
 		string result;
 		foreach (chr; str) {
@@ -472,20 +496,25 @@ align(1) struct SimpleString(alias table, ubyte terminator, size_t Length) {
 					break;
 				}
 			}
-			assert(found, "Game does not support character '"~inChar~"'");
+			assert(found, "String does not support character '"~inChar~"'");
 		}
+	}
+	string toSiryulType()() @safe {
+		return toString();
+	}
+	static SimpleString fromSiryulType()(string val) @safe {
+		SimpleString str;
+		str = val;
+		return str;
 	}
 }
 
-align(1) struct SimpleStringDynamic(alias table, ubyte terminator) {
+struct SimpleStringDynamic(alias table, ubyte terminator) {
 	import std.algorithm.searching : countUntil;
-	import siryul : SerializationMethod;
-	align(1):
 	ubyte[] str;
 	size_t length() const @safe {
 		return str.countUntil!(x => x == terminator);
 	}
-	@SerializationMethod
 	string toString() const @safe {
 		string result;
 		foreach (chr; str) {
@@ -496,31 +525,39 @@ align(1) struct SimpleStringDynamic(alias table, ubyte terminator) {
 		}
 		return result;
 	}
-	void opAssign(const string input) @safe {
-		str[] = terminator;
-		foreach (i, inChar; input) {
-			bool found;
-			foreach (k, v; table) {
-				if (v == [inChar]) {
-					found = true;
-					str[i] = k;
-					break;
-				}
-			}
-			assert(found, "Game does not support character '"~inChar~"'");
-		}
+	void opAssign(string input) @safe {
+		size_t index;
+		str = writeTableString!true(str[], table, input, index);
+		str.length = index;
 	}
+	string toSiryulType()() @safe {
+		return toString();
+	}
+	static SimpleStringDynamic fromSiryulType()(string val) @safe {
+		SimpleStringDynamic str;
+		str = val;
+		return str;
+	}
+}
+
+@safe pure unittest {
+	const str = SimpleStringDynamic!(['a': "bb"], 0)(['a', 'a', 'a', 0]);
+	assert(str.toString == "bbbbbb");
+	SimpleStringDynamic!(['a': "bb"], 0) tmp;
+	tmp = "bbbbbbbb";
+	assert(tmp.str == ['a', 'a', 'a', 'a']);
+	tmp = "bb";
+	assert(tmp.str == ['a']);
 }
 
 align(1) struct SimpleStrings(alias table, ubyte terminator, size_t Length) {
 	align(1):
-	import siryul : SerializationMethod;
 	ubyte[Length] str;
 	size_t length() const @safe {
 		return Length;
 	}
-	@SerializationMethod
 	string[] toString() const @safe {
+		import std.algorithm.iteration : joiner, map, splitter;
 		string[] result;
 		string buf;
 		foreach (chr; str) {
@@ -531,26 +568,45 @@ align(1) struct SimpleStrings(alias table, ubyte terminator, size_t Length) {
 				buf ~= SimpleChar!table(chr).toChar();
 			}
 		}
+		if (buf.length > 0) {
+			result ~= buf;
+		}
 		return result;
 	}
 	void opAssign(const string input) @safe {
 		str[] = terminator;
-		foreach (i, inChar; input) {
-			bool found;
-			foreach (k, v; table) {
-				if (v == [inChar]) {
-					found = true;
-					str[i] = k;
-					break;
-				}
-			}
-			assert(found, "Game does not support character '"~inChar~"'");
+		size_t _;
+		writeTableString!false(str[0 .. $], table, input, _);
+	}
+	void opAssign(const string[] input) @safe {
+		str[] = terminator;
+		size_t offset;
+		foreach (inputStr; input) {
+			writeTableString!false(str[offset .. $], table, inputStr, offset);
+			offset++;
 		}
 	}
 	auto opSlice() {
 		import std.algorithm.iteration : map, splitter;
 		return str[].splitter(terminator).map!(x => SimpleStringDynamic!(table, terminator)(x));
 	}
+	string[] toSiryulType()() @safe {
+		return toString();
+	}
+	static SimpleStrings fromSiryulType()(string[] val) @safe {
+		SimpleStrings str;
+		str = val;
+		return str;
+	}
+}
+
+@safe pure unittest {
+	import std.conv : text;
+	const strings = SimpleStrings!(['a': "bb"], 0, 3)(['a', 'a', 'a']);
+	assert(strings.toString == ["bbbbbb"]);
+	SimpleStrings!(['a': "bb"], 0, 10) test;
+	test = ["bb", "bb"];
+	assert(test.toString == ["bb", "bb", "", "", "", "", "", ""]);
 }
 
 struct Randomize {}
@@ -566,12 +622,16 @@ struct Height {
 enum RowByRow;
 
 align(1) struct UnknownData(size_t Size) {
-	import siryul : SerializationMethod;
 	align(1):
 	ubyte[Size] raw;
-	@SerializationMethod
 	string toBase64() const @safe {
 		import std.base64 : Base64;
 		return Base64.encode(raw[]);
 	}
+}
+
+@safe pure unittest {
+	UnknownData!4 data;
+	data.raw = [1, 2, 3, 4];
+	assert(data.toBase64 == "AQIDBA==");
 }
