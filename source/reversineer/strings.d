@@ -1,6 +1,6 @@
 module reversineer.strings;
 
-ubyte[] writeTableString(bool expand)(ubyte[] data, string[char] table, string str, out size_t index) @safe pure {
+private ubyte[] writeTableString(bool expand, Table)(ubyte[] data, const Table table, string str, out size_t index) @safe pure if (is(Table : const(string)[ubyte]) || is(Table : const(string)[char])) {
 	import std.algorithm.searching : startsWith;
 	import std.exception : enforce;
 	while (str.length > 0) {
@@ -119,6 +119,9 @@ struct SimpleStringDynamic(alias table, ubyte terminator) {
 	assert(tmp.str == ['a', 'a', 'a', 'a']);
 	tmp = "bb";
 	assert(tmp.str == ['a']);
+	immutable string[ubyte] testTable = [0x01: "abc"];
+	const str2 = SimpleStringDynamic!(testTable, 0)([1, 1, 1, 0]);
+	assert(str2.toString == "abcabcabc");
 }
 
 align(1) struct SimpleStrings(alias table, ubyte terminator, size_t Length) {
